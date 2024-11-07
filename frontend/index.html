@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>עמוד הבית - ניהול תקציב</title>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-4">עמוד הבית</h1>
+        
+        <div class="mb-3">
+            <a href="incomes.html" class="btn btn-primary">ניהול הכנסות</a>
+            <a href="expenses.html" class="btn btn-secondary">ניהול הוצאות</a>
+        </div>
+
+        <h2>סיכום</h2>
+        <div id="summary">
+            <p>סה"כ הכנסות: <span id="totalIncome">0</span></p>
+            <p>סה"כ הוצאות: <span id="totalExpense">0</span></p>
+            <p>סכום נטו: <span id="netAmount">0</span></p>
+        </div>
+
+        <canvas id="summaryChart" width="400" height="200"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        async function loadSummary() {
+            try {
+                const incomeResponse = await axios.get('http://127.0.0.1:8000/income/incomes/');
+                const expenseResponse = await axios.get('http://127.0.0.1:8000/expense/expenses/');
+
+                const incomes = incomeResponse.data;
+                const expenses = expenseResponse.data;
+
+                const totalIncome = incomes.reduce((sum, income) => sum + parseFloat(income.amount), 0);
+                const totalExpense = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
+                const netAmount = totalIncome - totalExpense;
+
+                document.getElementById('totalIncome').innerText = totalIncome.toFixed(2);
+                document.getElementById('totalExpense').innerText = totalExpense.toFixed(2);
+                document.getElementById('netAmount').innerText = netAmount.toFixed(2);
+
+                createChart(totalIncome, totalExpense);
+            } catch (error) {
+                console.error('Error loading summary:', error);
+            }
+        }
+
+        function createChart(income, expense) {
+            const ctx = document.getElementById('summaryChart').getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['הכנסות', 'הוצאות'],
+                    datasets: [{
+                        label: 'סכומים',
+                        data: [income, expense],
+                        backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(255, 99, 132, 0.2)'],
+                        borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        loadSummary(); // טען את הסיכום כשעומדים על הדף
+    </script>
+</body>
+</html>

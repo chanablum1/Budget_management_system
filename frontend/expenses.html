@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>ניהול הוצאות</title>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-4">ניהול הוצאות</h1>
+        
+        <div class="mb-3">
+            <button class="btn btn-primary" data-toggle="modal" data-target="#addExpenseModal">הוסף הוצאה</button>
+            <a href="index.html" class="btn btn-secondary">חזרה לעמוד הבית</a>
+        </div>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>תאריך</th>
+                    <th>סכום</th>
+                    <th>קטגוריה</th>
+                    <th>תיאור</th>
+                    <th>פעולות</th>
+                </tr>
+            </thead>
+            <tbody id="expenseTableBody">
+                <!-- הוצאות יתווספו כאן באמצעות JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- מודל להוספת הוצאה -->
+    <div class="modal fade" id="addExpenseModal" tabindex="-1" role="dialog" aria-labelledby="addExpenseModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addExpenseModalLabel">הוסף הוצאה חדשה</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="expenseForm">
+                        <div class="form-group">
+                            <label for="expenseDate">תאריך</label>
+                            <input type="date" class="form-control" id="expenseDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="expenseCategory">קטגוריה</label>
+                            <select class="form-control" id="expenseCategory" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="expenseAmount">סכום</label>
+                            <input type="number" class="form-control" id="expenseAmount" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="expenseCategory">קטגוריה</label>
+                            <input type="text" class="form-control" id="expenseCategory" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="expenseDescription">תיאור</label>
+                            <input type="text" class="form-control" id="expenseDescription" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">שמור</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        async function loadExpenses() {
+            try {
+                const response = await axios.get('http://127.0.0.1:8000/expense/expenses/');
+                const expenses = response.data;
+                const tableBody = document.getElementById('expenseTableBody');
+                tableBody.innerHTML = ''; // נקה את הטבלה
+
+                expenses.forEach(expense => {
+                    const row = tableBody.insertRow();
+                    row.innerHTML = `<td>${expense.date}</td><td>${expense.amount}</td><td>${expense.category}</td><td>${expense.description}</td><td><button class="btn btn-danger" onclick="deleteExpense(${expense.id})">מחק</button></td>`;
+                });
+            } catch (error) {
+                console.error('Error loading expenses:', error);
+            }
+        }
+
+        async function addExpense(event) {
+            event.preventDefault();
+
+            const date = document.getElementById('expenseDate').value;
+            const amount = document.getElementById('expenseAmount').value;
+            const category = document.getElementById('expenseCategory').value;
+            const description = document.getElementById('expenseDescription').value;
+
+            try {
+                const response = await axios.post('http://127.0.0.1:8000/expense/expenses/', {
+                    date: date,
+                    amount: amount,
+                    category: category,
+                    description: description
+                });
+
+                if (response.status === 201) {
+                    const data = response.data;
+                    const tableBody = document.getElementById('expenseTableBody');
+                    const row = tableBody.insertRow();
+                    row.innerHTML = `<td>${data.date}</td><td>${data.amount}</td><td>${data.category}</td><td>${data.description}</td><td><button class="btn btn-danger" onclick="deleteExpense(${data.id})">מחק</button></td>`;
+                    
+                    document.getElementById('expenseForm').reset();
+                    $('#addExpenseModal').modal('hide');
+                }
+            } catch (error) {
+                console.error('Error adding expense:', error);
+            }
+        }
+
+        async function deleteExpense(id) {
+            try {
+                await axios.delete(`http://127.0.0.1:8000/expense/expenses/${id}/`);
+                loadExpenses();
+            } catch (error) {
+                console.error('Error deleting expense:', error);
+            }
+        }
+
+        document.getElementById('expenseForm').addEventListener('submit', addExpense);
+        loadExpenses(); // טען הוצאות כשעמודים
+    </script>
+</body>
+</html>
