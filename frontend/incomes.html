@@ -123,8 +123,29 @@
             }
         }
 
-        let currentIncomeId = null;  // הגדרת משתנה לאחסון ה-ID של העיסקה הנבחרת
+        let currentIncomeId = null;  // הגדרת משתנה גלובלי ברירת מחדל
 
+        // פונקציה להוסיף נתונים של העיסקה לטופס על מנת לעדכן אותה
+        async function editIncome(id) {
+            currentIncomeId = id;  // שומר את ה-ID של העיסקה שנבחרה לעריכה
+
+            try {
+                const response = await axios.get(`http://127.0.0.1:8000/transaction/transactions/${id}/`);
+                const income = response.data;
+
+                // טוען את הנתונים של העיסקה לטופס
+                document.getElementById('incomeDate').value = income.date;
+                document.getElementById('incomeAmount').value = income.amount;
+                document.getElementById('incomeDescription').value = income.description;
+                document.getElementById('incomePaymentMethod').value = income.payment_method;
+                document.getElementById('incomeCategory').value = income.category.id;
+
+                // פותח את המודל
+                $('#addIncomeModal').modal('show');
+            } catch (error) {
+                console.error('Error fetching income for editing:', error);
+            }
+        }
         // עדכון הפונקציה addIncome כך שתעדכן את העיסקה הישנה ולא תוסיף עיסקה חדשה
         async function addIncome(event) {
             event.preventDefault();

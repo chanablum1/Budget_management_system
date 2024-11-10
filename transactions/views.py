@@ -6,6 +6,8 @@ from .serializers import TransactionSerializer, CategorySerializer
 from django.db.models import Sum
 from users.models import SmartUser
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.dateparse import parse_date
+from datetime import datetime, timedelta
 
 # ניהול קטגוריות
 @api_view(['GET', 'POST'])
@@ -150,11 +152,47 @@ def transaction_detail(request, pk=None):
         except Transaction.DoesNotExist:
             return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
 
+# סיכום חודשי
+@api_view(['GET'])
+def monthly_summary(request):
+    # קבלת חודש ושנה מה-query params
+    month = request.query_params.get('month', None)  # חודש בפורמט 'YYYY-MM'
+    
+    if not month:
+        return Response({"error": "חודש לא צוין"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+            # המרת החודש (בשנה-חודש) לפורמט תאריך
+            year, month = month.split("-")
+            month = int(month)
+            year = int(year)
+            
+            # סינון העסקאות לפי תאריך החודש והשנה
+            start_date = datetime(year, month, 1)
+            end_date = datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1)
+            
+            # סיכום הכנסות והוצאות בחודש הנבחר
+            total_income = Transaction.objects.filter(date__gte=start_date, date__lt=end_date, category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
+            total_expense = Transaction.objects.filter(date__gte=start_date, date__lt=end_date, category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
+            
+            return Response({
+                "total_income": total_income,
+                "total_expense": total_expense,
+                "balance": total_income - total_expense,
+                "month": f"{year}-{month:02d}"
+            })
+    except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 # סיכום
 @api_view(['GET'])
 def summary_view(request):
     total_income = Transaction.objects.filter(category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
     total_expense = Transaction.objects.filter(category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
+
+    # balance = total_income - total_expense
+
 
     return Response({
         'total_income': total_income,

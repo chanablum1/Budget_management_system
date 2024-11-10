@@ -4,77 +4,109 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <title>עמוד הבית - ניהול תקציב</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- קישור לאייקונים של Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <title>סיכום חודשי</title>
 </head>
 <body>
     <div class="container">
-        <h1 class="mt-4">עמוד הבית</h1>
-        
+        <h1 class="mt-4">סיכום חודשי</h1>
+
+        <!-- הוספת אייקונים של הכנסות והוצאות -->
         <div class="mb-3">
-            <a href="incomes.html" class="btn btn-primary">ניהול הכנסות</a>
-            <a href="expenses.html" class="btn btn-secondary">ניהול הוצאות</a>
+            <a href="incomes.html" class="btn btn-success mr-2">
+                <i class="fas fa-plus-circle"></i> הוסף הכנסה
+            </a>
+            <a href="expenses.html" class="btn btn-danger">
+                <i class="fas fa-minus-circle"></i> הוסף הוצאה
+            </a>
         </div>
 
-        <h2>סיכום</h2>
-        <div id="summary">
-            <p>סה"כ הכנסות: <span id="totalIncome">0</span></p>
-            <p>סה"כ הוצאות: <span id="totalExpense">0</span></p>
-            <p>סכום נטו: <span id="netAmount">0</span></p>
+        <!-- בחירת חודש -->
+        <div class="mb-3">
+            <label for="monthSelect">בחר חודש:</label>
+            <input type="month" class="form-control" id="monthSelect" value="2024-11">
+            <button class="btn btn-primary mt-2" onclick="loadMonthlySummary()">הצג סיכום</button>
         </div>
 
+        <!-- הסיכום -->
+        <div id="summary" class="mb-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <h3>הכנסות:</h3>
+                    <p id="totalIncome">0</p>
+                </div>
+                <div class="col-md-4">
+                    <h3>הוצאות:</h3>
+                    <p id="totalExpense">0</p>
+                </div>
+                <div class="col-md-4">
+                    <h3>יתרה:</h3>
+                    <p id="balance">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- גרף סיכום -->
         <canvas id="summaryChart" width="400" height="200"></canvas>
+
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
     <script>
-        async function loadSummary() {
+
+        let chart = null; // משתנה כדי לאחסן את הגרף הקיים
+
+        async function loadMonthlySummary() {
+            const month = document.getElementById('monthSelect').value;
+            
             try {
-                const incomeResponse = await axios.get('http://127.0.0.1:8000/income/incomes/');
-                const expenseResponse = await axios.get('http://127.0.0.1:8000/expense/expenses/');
+                const response = await axios.get(`http://127.0.0.1:8000/transaction/transactions/monthly-summary/?month=${month}`);
+                const summary = response.data;
 
-                const incomes = incomeResponse.data;
-                const expenses = expenseResponse.data;
+                // הצגת הסיכום
+                document.getElementById('totalIncome').textContent = summary.total_income.toLocaleString();
+                document.getElementById('totalExpense').textContent = summary.total_expense.toLocaleString();
+                document.getElementById('balance').textContent = summary.balance.toLocaleString();
 
-                const totalIncome = incomes.reduce((sum, income) => sum + parseFloat(income.amount), 0);
-                const totalExpense = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
-                const netAmount = totalIncome - totalExpense;
+                if (chart) {
+                    chart.destroy();
+                }
 
-                document.getElementById('totalIncome').innerText = totalIncome.toFixed(2);
-                document.getElementById('totalExpense').innerText = totalExpense.toFixed(2);
-                document.getElementById('netAmount').innerText = netAmount.toFixed(2);
 
-                createChart(totalIncome, totalExpense);
+                // יצירת גרף
+                const ctx = document.getElementById('summaryChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['הכנסות', 'הוצאות', 'יתרה'],
+                        datasets: [{
+                            label: 'סכום',
+                            data: [summary.total_income, summary.total_expense, summary.balance],
+                            backgroundColor: ['#28a745', '#dc3545', '#ffc107'],
+                            borderColor: ['#28a745', '#dc3545', '#ffc107'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
             } catch (error) {
                 console.error('Error loading summary:', error);
             }
         }
 
-        function createChart(income, expense) {
-            const ctx = document.getElementById('summaryChart').getContext('2d');
-            const chart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['הכנסות', 'הוצאות'],
-                    datasets: [{
-                        label: 'סכומים',
-                        data: [income, expense],
-                        backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(255, 99, 132, 0.2)'],
-                        borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)'],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
-
-        loadSummary(); // טען את הסיכום כשעומדים על הדף
+        // טוען את הסיכום עבור החודש הנבחר
+        loadMonthlySummary();
     </script>
 </body>
 </html>
