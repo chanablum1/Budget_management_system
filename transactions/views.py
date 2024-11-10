@@ -3,17 +3,28 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Transaction, Category
 from .serializers import TransactionSerializer, CategorySerializer
-import json
 from django.db.models import Sum
 from users.models import SmartUser
+from django.views.decorators.csrf import csrf_exempt
 
 # ניהול קטגוריות
 @api_view(['GET', 'POST'])
 def category_list(request):
     if request.method == 'GET':
-        categories = Category.objects.all()
+        category_type = request.query_params.get('type', None)
+        if category_type == 'income':
+            categories = Category.objects.filter(type='income')  # הצגת רק קטגוריות של הכנסה
+        elif category_type == 'expense':
+            categories = Category.objects.filter(type='expense')  # הצגת רק קטגוריות של הוצאה
+        else:
+            categories = Category.objects.all()  # ברירת מחדל - כל הקטגוריות
+
         serializer = CategorySerializer(categories, many=True)
         return Response(serializer.data)
+
+        # categories = Category.objects.all()
+        # serializer = CategorySerializer(categories, many=True)
+        # return Response(serializer.data)
 
     elif request.method == 'POST':
         serializer = CategorySerializer(data=request.data)
@@ -46,14 +57,27 @@ def category_detail(request, pk):
 
 
 # פונקציה לניהול עסקאות
+@csrf_exempt
 @api_view(['GET', 'POST', 'PUT', 'DELETE'])
 def transaction_detail(request, pk=None):
     if request.method == 'GET':
-        # הצגת כל העיסקות אם pk לא הוזן
         if pk is None:
-            transactions = Transaction.objects.all()
+            # סינון העסקאות לפי הטייפ (הכנסה או הוצאה)
+            transaction_type = request.query_params.get('type', None)  # 'income' או 'expense'
+            if transaction_type == 'income':
+                transactions = Transaction.objects.filter(category__type='income')  # הצגת רק קטגוריות של הכנסה
+            elif transaction_type == 'expense':
+                transactions = Transaction.objects.filter(category__type='expense')  # הצגת רק קטגוריות של הוצאה
+            else:
+                transactions = Transaction.objects.all()  # ברירת מחדל - כל העסקאות
+
             serializer = TransactionSerializer(transactions, many=True)
             return Response(serializer.data)
+        # הצגת כל העיסקות אם pk לא הוזן
+        # if pk is None:
+        #     transactions = Transaction.objects.all()
+        #     serializer = TransactionSerializer(transactions, many=True)
+        #     return Response(serializer.data)
         else:
             try:
                 transaction = Transaction.objects.get(pk=pk)
@@ -63,8 +87,8 @@ def transaction_detail(request, pk=None):
                 return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
 
     elif request.method == 'POST':
-        if not request.user.is_authenticated or request.user.id != 1:
-            return Response({'error': 'Unauthorized user'}, status=status.HTTP_403_FORBIDDEN)
+        # if not request.user.is_authenticated or request.user.id != 1:
+        #     return Response({'error': 'Unauthorized user'}, status=status.HTTP_403_FORBIDDEN)
 
         data = request.data
         try:
@@ -75,9 +99,10 @@ def transaction_detail(request, pk=None):
         if category.type not in ['income', 'expense']:
             return Response({'error': 'Invalid category type'}, status=status.HTTP_400_BAD_REQUEST)
 
+        user = SmartUser.objects.get(id=1)
         # שימוש ביוזר קיים
         transaction = Transaction.objects.create(
-            user=request.user,  # משתמש קיים (במקרה הזה עם ID 1)
+            user=user,  # משתמש קיים (במקרה הזה עם ID 1)
             category=category,
             date=data['date'],
             amount=data['amount'],
@@ -93,11 +118,29 @@ def transaction_detail(request, pk=None):
         except Transaction.DoesNotExist:
             return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = TransactionSerializer(transaction, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                # קריאת נתוני הקטגוריה, במקרה הזה רק ה-ID מגיע
+        category_id = request.data.get('category')  # מקבלים רק את ה-ID של הקטגוריה
+        try:
+            category = Category.objects.get(id=category_id)  # לא צריך את כל המילון, רק את ה-ID
+        except Category.DoesNotExist:
+            return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # עדכון העיסקה עם הנתונים החדשים
+        transaction.date = request.data.get('date', transaction.date)
+        transaction.amount = request.data.get('amount', transaction.amount)
+        transaction.category = category  # עדכון הקטגוריה לפי ה-ID
+        transaction.description = request.data.get('description', transaction.description)
+        transaction.payment_method = request.data.get('payment_method', transaction.payment_method)
+
+        transaction.save()  # שמירת העדכון
+
+        serializer = TransactionSerializer(transaction)
+        return Response(serializer.data)  # מחזירים את העיסקה המעודכנת
+        # serializer = TransactionSerializer(transaction, data=request.data)
+        # if serializer.is_valid():
+        #     serializer.save()
+        #     return Response(serializer.data)
+        # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         try:

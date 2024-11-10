@@ -9,9 +9,16 @@ class CategorySerializer(serializers.ModelSerializer):
 
         
 class TransactionSerializer(serializers.ModelSerializer):
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())  # רק ה-ID של הקטגוריה
+
+    # category = CategorySerializer() 
+
     class Meta:
         model = Transaction
         fields = '__all__'
+
+
+
 
 
 

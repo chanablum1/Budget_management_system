@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <title>ניהול הוצאות</title>
+    <title>ניהול הכנסות</title>
 </head>
 <body>
     <div class="container">
-        <h1 class="mt-4">ניהול הוצאות</h1>
+        <h1 class="mt-4">ניהול הכנסות</h1>
         
         <div class="mb-3">
-            <button class="btn btn-primary" data-toggle="modal" data-target="#addExpenseModal">הוסף הוצאה</button>
+            <button class="btn btn-primary" data-toggle="modal" data-target="#addIncomeModal">הוסף הכנסה</button>
             <a href="index.html" class="btn btn-secondary">חזרה לעמוד הבית</a>
         </div>
 
@@ -25,44 +25,50 @@
                     <th>פעולות</th>
                 </tr>
             </thead>
-            <tbody id="expenseTableBody">
-                <!-- הוצאות יתווספו כאן באמצעות JavaScript -->
+            <tbody id="incomeTableBody">
+                <!-- הכנסות יתווספו כאן באמצעות JavaScript -->
             </tbody>
         </table>
     </div>
 
-    <!-- מודל להוספת הוצאה -->
-    <div class="modal fade" id="addExpenseModal" tabindex="-1" role="dialog" aria-labelledby="addExpenseModalLabel" aria-hidden="true">
+    <!-- מודל להוספת הכנסה -->
+    <div class="modal fade" id="addIncomeModal" tabindex="-1" role="dialog" aria-labelledby="addIncomeModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addExpenseModalLabel">הוסף הוצאה חדשה</h5>
+                    <h5 class="modal-title" id="addIncomeModalLabel">הוסף הכנסה חדשה</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
-                    <form id="expenseForm">
+                    <form id="incomeForm">
                         <div class="form-group">
-                            <label for="expenseDate">תאריך</label>
-                            <input type="date" class="form-control" id="expenseDate" required>
+                            <label for="incomeDate">תאריך</label>
+                            <input type="date" class="form-control" id="incomeDate" required>
                         </div>
                         <div class="form-group">
-                            <label for="expenseCategory">קטגוריה</label>
-                            <select class="form-control" id="expenseCategory" required></select>
+                            <label for="incomeCategory">קטגוריה</label>
+                            <select class="form-control" id="incomeCategory" required></select>
                         </div>
                         <div class="form-group">
-                            <label for="expenseAmount">סכום</label>
-                            <input type="number" class="form-control" id="expenseAmount" required>
+                            <label for="incomeAmount">סכום</label>
+                            <input type="number" class="form-control" id="incomeAmount" required>
                         </div>
                         <div class="form-group">
-                            <label for="expenseCategory">קטגוריה</label>
-                            <input type="text" class="form-control" id="expenseCategory" required>
-                        </div>
+                            <label for="incomeDescription">תיאור</label>
+                            <input type="text" class="form-control" id="incomeDescription" required>
+                        </div> 
                         <div class="form-group">
-                            <label for="expenseDescription">תיאור</label>
-                            <input type="text" class="form-control" id="expenseDescription" required>
-                        </div>
+                            <label for="incomePaymentMethod">אמצעי תשלום</label>
+                            <select class="form-control" id="incomePaymentMethod" required>
+                                <option value="" disabled selected>בחר אמצעי תשלום</option>
+                                <option value="cash">מזומן</option>
+                                <option value="credit_card">כרטיס אשראי</option>
+                                <option value="bank_transfer">העברה בנקאית</option>
+                                <option value="check">צ'ק</option>
+                            </select>
+                        </div>                       
                         <button type="submit" class="btn btn-primary">שמור</button>
                     </form>
                 </div>
@@ -75,63 +81,166 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-        async function loadExpenses() {
+        async function loadCategories() {
             try {
-                const response = await axios.get('http://127.0.0.1:8000/expense/expenses/');
-                const expenses = response.data;
-                const tableBody = document.getElementById('expenseTableBody');
-                tableBody.innerHTML = ''; // נקה את הטבלה
+                const response = await axios.get('http://127.0.0.1:8000/transaction/categories/?type=income');
+                const categories = response.data;
+                const incomeCategorySelect = document.getElementById('incomeCategory'); 
 
-                expenses.forEach(expense => {
-                    const row = tableBody.insertRow();
-                    row.innerHTML = `<td>${expense.date}</td><td>${expense.amount}</td><td>${expense.category}</td><td>${expense.description}</td><td><button class="btn btn-danger" onclick="deleteExpense(${expense.id})">מחק</button></td>`;
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    incomeCategorySelect.appendChild(option);
                 });
             } catch (error) {
-                console.error('Error loading expenses:', error);
+                console.error('Error loading categories:', error);
             }
         }
 
-        async function addExpense(event) {
+        async function loadIncomes() {
+            try {
+                const response = await axios.get('http://127.0.0.1:8000/transaction/transactions/?type=income');
+                const incomes = response.data;
+                console.log(incomes);
+                const tableBody = document.getElementById('incomeTableBody');
+                tableBody.innerHTML = ''; // נקה את הטבלה
+
+                incomes.forEach(income => {
+                    const row = tableBody.insertRow();
+                    row.innerHTML = `
+                        <td>${income.date}</td>
+                        <td>${income.amount}</td>
+                        <td>${income.category ? income.category.name : 'לא זוהתה קטגוריה'}</td>
+                        <td>${income.description}</td>
+                        <td>
+                            <button class="btn btn-success" onclick="editIncome(${income.id})">עדכן</button>
+                            <button class="btn btn-danger" onclick="deleteIncome(${income.id})">מחק</button>
+                        </td>`;
+                });
+            } catch (error) {
+                console.error('Error loading incomes:', error);
+            }
+        }
+
+        // async function addIncome(event) {
+        //     event.preventDefault();
+
+        //     const date = document.getElementById('incomeDate').value;
+        //     const amount = document.getElementById('incomeAmount').value;
+        //     const category = document.getElementById('incomeCategory').value;
+        //     const description = document.getElementById('incomeDescription').value;
+        //     const paymentMethod = document.getElementById('incomePaymentMethod').value;
+
+        //     if (currentIncomeId) {
+        //         // במקרה של עדכון
+        //         try {
+        //             const response = await axios.put(`http://127.0.0.1:8000/transaction/transactions/${currentIncomeId}/`, {
+        //                 date: date,
+        //                 amount: amount,
+        //                 category: category,
+        //                 description: description,
+        //                 payment_method: paymentMethod
+        //             });
+
+        //             if (response.status === 200) {
+        //                 loadIncomes();  // טען את הנתונים מחדש לאחר העדכון
+        //                 document.getElementById('incomeForm').reset();
+        //                 $('#addIncomeModal').modal('hide');
+        //                 currentIncomeId = null;  // לאתחל את ה-ID לאחר העדכון
+        //             }
+        //         } catch (error) {
+        //             console.error('Error updating income:', error);
+        //         }
+        //     } else {
+        //         // במקרה של הוספה חדשה
+        //         try {
+        //             const response = await axios.post('http://127.0.0.1:8000/transaction/transactions/', {
+        //                 date: date,
+        //                 amount: amount,
+        //                 category: category,
+        //                 description: description,
+        //                 payment_method: paymentMethod,
+        //             });
+
+        //             if (response.status === 201) {
+        //                 loadIncomes();
+        //                 document.getElementById('incomeForm').reset();
+        //                 $('#addIncomeModal').modal('hide');
+        //             }
+        //         } catch (error) {
+        //             console.error('Error adding income:', error);
+        //         }
+        //     }
+        // }
+
+
+        async function addIncome(event) {
             event.preventDefault();
 
-            const date = document.getElementById('expenseDate').value;
-            const amount = document.getElementById('expenseAmount').value;
-            const category = document.getElementById('expenseCategory').value;
-            const description = document.getElementById('expenseDescription').value;
+            const date = document.getElementById('incomeDate').value;
+            const amount = document.getElementById('incomeAmount').value;
+            const category = document.getElementById('incomeCategory').value;
+            const description = document.getElementById('incomeDescription').value;
+            const paymentMethod = document.getElementById('incomePaymentMethod').value;
+
 
             try {
-                const response = await axios.post('http://127.0.0.1:8000/expense/expenses/', {
+                const response = await axios.post('http://127.0.0.1:8000/transaction/transactions/', {
                     date: date,
                     amount: amount,
                     category: category,
-                    description: description
+                    description: description,
+                    payment_method: paymentMethod,
+                }, {
+                    // withCredentials: true 
+                    // user: 1 // הוספת יוזר בדיפולט
                 });
 
                 if (response.status === 201) {
-                    const data = response.data;
-                    const tableBody = document.getElementById('expenseTableBody');
-                    const row = tableBody.insertRow();
-                    row.innerHTML = `<td>${data.date}</td><td>${data.amount}</td><td>${data.category}</td><td>${data.description}</td><td><button class="btn btn-danger" onclick="deleteExpense(${data.id})">מחק</button></td>`;
-                    
-                    document.getElementById('expenseForm').reset();
-                    $('#addExpenseModal').modal('hide');
+                    loadIncomes(); // טען הכנסות מחדש לאחר ההוספה
+                    document.getElementById('incomeForm').reset();
+                    $('#addIncomeModal').modal('hide');
                 }
             } catch (error) {
-                console.error('Error adding expense:', error);
+                console.error('Error adding income:', error);
             }
         }
 
-        async function deleteExpense(id) {
+        async function editIncome(id) {
+            currentIncomeId = id;  // שומר את ה-ID של העיסקה שנבחרה לעריכה
+            
             try {
-                await axios.delete(`http://127.0.0.1:8000/expense/expenses/${id}/`);
-                loadExpenses();
+                const response = await axios.get(`http://127.0.0.1:8000/transaction/transactions/${id}/`);
+                const income = response.data;
+
+                // טוען את הנתונים של העיסקה לטופס
+                document.getElementById('incomeDate').value = income.date;
+                document.getElementById('incomeAmount').value = income.amount;
+                document.getElementById('incomeDescription').value = income.description;
+                document.getElementById('incomePaymentMethod').value = income.payment_method;
+                document.getElementById('incomeCategory').value = income.category.id;
+
+                // פותח את המודל
+                $('#addIncomeModal').modal('show');
             } catch (error) {
-                console.error('Error deleting expense:', error);
+                console.error('Error fetching income for editing:', error);
+            }
+        }
+        
+
+        async function deleteIncome(id) {
+            try {
+                await axios.delete(`http://127.0.0.1:8000/transaction/transactions/${id}/`);
+                loadIncomes();
+            } catch (error) {
+                console.error('Error deleting income:', error);
             }
         }
 
-        document.getElementById('expenseForm').addEventListener('submit', addExpense);
-        loadExpenses(); // טען הוצאות כשעמודים
+        document.getElementById('incomeForm').addEventListener('submit', addIncome);
+        loadIncomes(); // טען הכנסות כשעמודים
+        loadCategories(); // טען קטגוריות
     </script>
 </body>
 </html>
