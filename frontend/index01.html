@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>אתר לניהול תקציב אישי</title>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-4">סיכום הוצאות והכנסות</h1>
+
+        <!-- הסיכום -->
+        <div id="summary" class="mb-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <h3>הכנסות:</h3>
+                    <p id="totalIncome">0</p>
+                </div>
+                <div class="col-md-4">
+                    <h3>הוצאות:</h3>
+                    <p id="totalExpense">0</p>
+                </div>
+                <div class="col-md-4">
+                    <h3>יתרה:</h3>
+                    <p id="balance">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- קישורים להוצאות והכנסות -->
+        <div class="mb-3">
+            <a href="incomes.html" class="btn btn-primary">ניהול הכנסות</a>
+            <a href="expenses.html" class="btn btn-danger">ניהול הוצאות</a>
+        </div>
+
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        // פונקציה לקרוא את הסיכום מה-API ולהציג אותו במסך הבית
+        async function loadSummary() {
+            try {
+                const response = await axios.get('http://127.0.0.1:8000/transaction/transactions/summary/');
+                const summary = response.data;
+
+                // הצגת הסיכום
+                document.getElementById('totalIncome').textContent = summary.total_income;
+                document.getElementById('totalExpense').textContent = summary.total_expense;
+                document.getElementById('balance').textContent = summary.balance;
+            } catch (error) {
+                console.error('Error loading summary:', error);
+            }
+        }
+
+        // טוען את הסיכום כשעמוד נטען
+        loadSummary();
+    </script>
+</body>
+</html>
