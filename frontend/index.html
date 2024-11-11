@@ -11,6 +11,15 @@
 </head>
 <body>
     <div class="container">
+
+        <!-- הצגת שם המשתמש והכפתור Logout -->
+        <div class="d-flex justify-content-between">
+            <div id="user-info">
+                <span id="username-display"></span>
+            </div>
+            <button id="logout-btn" class="btn btn-danger" style="display: none;" onclick="logout()">Logout</button>
+        </div>
+
         <h1 class="mt-4">סיכום חודשי</h1>
 
         <!-- הוספת אייקונים של הכנסות והוצאות -->
@@ -34,15 +43,15 @@
         <div id="summary" class="mb-4">
             <div class="row">
                 <div class="col-md-4">
-                    <h3>הכנסות:</h3>
+                    <h3>:הכנסות</h3>
                     <p id="totalIncome">0</p>
                 </div>
                 <div class="col-md-4">
-                    <h3>הוצאות:</h3>
+                    <h3>:הוצאות</h3>
                     <p id="totalExpense">0</p>
                 </div>
                 <div class="col-md-4">
-                    <h3>יתרה:</h3>
+                    <h3>:יתרה</h3>
                     <p id="balance">0</p>
                 </div>
             </div>
@@ -61,12 +70,44 @@
 
         let chart = null; // משתנה כדי לאחסן את הגרף הקיים
 
+        // פונקציה לעדכון שם המשתמש והצגת כפתור Logout אם המשתמש מחובר
+        function checkLoginStatus() {
+            const authToken = localStorage.getItem('authToken');
+
+            if (authToken) {
+                const username = localStorage.getItem('username'); // שמור את שם המשתמש בעת הלוגין
+                document.getElementById('username-display').textContent = `Hello, ${localStorage.getItem('username')}`;
+                document.getElementById('logout-btn').style.display = 'inline-block';
+            } else {
+                // אם המשתמש לא מחובר, הפנה לדף הלוגין
+                window.location.href = 'login.html';
+            }
+        }
+
         async function loadMonthlySummary() {
             const month = document.getElementById('monthSelect').value;
-            
+           
+            const authToken = localStorage.getItem('authToken');
+
+            // אם הטוקן לא קיים, יש להחזיר הודעת שגיאה או לכוון לעמוד לוגין
+            if (!authToken) {
+                alert('Please log in first.');
+                window.location.href = 'login.html'; // דילוג לדף הלוגין אם לא מחובר
+                return;
+            }
+
             try {
-                const response = await axios.get(`http://127.0.0.1:8000/transaction/transactions/monthly-summary/?month=${month}`);
+                const response = await axios.get(`http://127.0.0.1:8000/transaction/transactions/monthly-summary/?month=${month}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`  // שליחת הטוקן בהגדרת כותרת
+                    }
+                });
+
                 const summary = response.data;
+
+            // try {
+            //     const response = await axios.get(`http://127.0.0.1:8000/transaction/transactions/monthly-summary/?month=${month}`);
+            //     const summary = response.data;
 
                 // הצגת הסיכום
                 document.getElementById('totalIncome').textContent = summary.total_income.toLocaleString();
@@ -104,9 +145,21 @@
                 console.error('Error loading summary:', error);
             }
         }
+      
+         // פונקציה לביצוע Logout
+        function logout() {
+            // מסיר את הטוקן מ-localStorage ומפנה לדף הלוגין
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('username');
+            window.location.href = 'login.html'; // הפנייה לעמוד הלוגין
+        }
 
         // טוען את הסיכום עבור החודש הנבחר
         loadMonthlySummary();
+
+        checkLoginStatus();
+
     </script>
 </body>
 </html>

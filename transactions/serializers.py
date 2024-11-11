@@ -1,6 +1,21 @@
 from rest_framework import serializers
 from .models import Category, Transaction
+from rest_framework_simplejwt.tokens import RefreshToken
+# from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+# from users.models import SmartUser
 
+
+# class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+#     @classmethod
+#     def get_token(cls, user):
+#         token = super().get_token(user)
+        
+#         # הוספת שם המשתמש ל-token
+#         token['username'] = user.username
+#         token['first_name'] = user.first_name  # הוספת השם הפרטי
+#         # ניתן להוסיף כאן עוד מידע שתרצה להחזיר בתוך ה-token
+        
+#         return token
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:

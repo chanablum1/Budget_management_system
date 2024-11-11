@@ -1,4 +1,6 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Transaction, Category
@@ -9,24 +11,85 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_date
 from datetime import datetime, timedelta
 
+
+@api_view(['POST'])
+def login(request):
+    # הכנס את הקוד המתאים כדי לזהות את המשתמש ולהחזיר את הטוקן
+    username = request.data.get('username')
+    password = request.data.get('password')
+
+    # user = SmartUser.objects.get(username=username, password=password)  # כאן אתה שולף את המשתמש מתוך המודל SmartUser
+    print(f"Received credentials: username={username}, password={password}")
+
+    # user = authenticate(username=username, password=password)  # לדוגמה אם אתה משתמש ב-Django Auth
+
+    try:
+        user = SmartUser.objects.get(username=username, password=password)
+        print(f"User {user.username} logged in successfully")  # <-- כאן ההדפסה
+
+
+    # if user:
+        # יצירת טוקן גישה ו-refresh
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        # print(f"User {user.username} logged in successfully")  # הדפסת שם המשתמש בקונסול
+        print(f"Username received: {username}")
+        print(f"Password received: {password}")
+
+            # שליחה של טוקנים ונתוני המשתמש
+        return Response({
+            'access': access_token,
+            'refresh': refresh_token,
+            'username': user.username , # החזרת שם המשתמש
+                
+        })
+
+    except SmartUser.DoesNotExist:
+        print("Invalid credentials")  # הדפסת שגיאה אם המשתמש לא נמצא
+
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+@api_view(['POST'])
+def register(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    first_name = request.data.get('first_name')
+
+    # יצירת משתמש חדש
+    try:
+        user = SmartUser.objects.create_user(username=username, password=password, first_name=first_name)
+        
+        # יצירת טוקן גישה ו-refresh
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        return Response({
+            'access': access_token,
+            'refresh': refresh_token,
+            'username': user.username
+        }, status=status.HTTP_201_CREATED)
+    
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)    
+
+
 # ניהול קטגוריות
 @api_view(['GET', 'POST'])
 def category_list(request):
     if request.method == 'GET':
         category_type = request.query_params.get('type', None)
         if category_type == 'income':
-            categories = Category.objects.filter(type='income')  # הצגת רק קטגוריות של הכנסה
+            categories = Category.objects.filter(type='income')  
         elif category_type == 'expense':
-            categories = Category.objects.filter(type='expense')  # הצגת רק קטגוריות של הוצאה
+            categories = Category.objects.filter(type='expense')      
         else:
-            categories = Category.objects.all()  # ברירת מחדל - כל הקטגוריות
+            categories = Category.objects.all()  
 
         serializer = CategorySerializer(categories, many=True)
         return Response(serializer.data)
-
-        # categories = Category.objects.all()
-        # serializer = CategorySerializer(categories, many=True)
-        # return Response(serializer.data)
 
     elif request.method == 'POST':
         serializer = CategorySerializer(data=request.data)
@@ -61,25 +124,24 @@ def category_detail(request, pk):
 # פונקציה לניהול עסקאות
 @csrf_exempt
 @api_view(['GET', 'POST', 'PUT', 'DELETE'])
+# @permission_classes([IsAuthenticated])
 def transaction_detail(request, pk=None):
+    user = request.user  # קבלת המשתמש המחובר
+
     if request.method == 'GET':
         if pk is None:
             # סינון העסקאות לפי הטייפ (הכנסה או הוצאה)
-            transaction_type = request.query_params.get('type', None)  # 'income' או 'expense'
+            transaction_type = request.query_params.get('type', None)  
             if transaction_type == 'income':
-                transactions = Transaction.objects.filter(category__type='income')  # הצגת רק קטגוריות של הכנסה
+                transactions = Transaction.objects.filter(category__type='income')  
             elif transaction_type == 'expense':
-                transactions = Transaction.objects.filter(category__type='expense')  # הצגת רק קטגוריות של הוצאה
+                transactions = Transaction.objects.filter(category__type='expense') 
             else:
-                transactions = Transaction.objects.all()  # ברירת מחדל - כל העסקאות
+                transactions = Transaction.objects.all()
+                # filter(user=user)  
 
             serializer = TransactionSerializer(transactions, many=True)
             return Response(serializer.data)
-        # הצגת כל העיסקות אם pk לא הוזן
-        # if pk is None:
-        #     transactions = Transaction.objects.all()
-        #     serializer = TransactionSerializer(transactions, many=True)
-        #     return Response(serializer.data)
         else:
             try:
                 transaction = Transaction.objects.get(pk=pk)
@@ -138,11 +200,6 @@ def transaction_detail(request, pk=None):
 
         serializer = TransactionSerializer(transaction)
         return Response(serializer.data)  # מחזירים את העיסקה המעודכנת
-        # serializer = TransactionSerializer(transaction, data=request.data)
-        # if serializer.is_valid():
-        #     serializer.save()
-        #     return Response(serializer.data)
-        # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         try:
@@ -154,7 +211,10 @@ def transaction_detail(request, pk=None):
 
 # סיכום חודשי
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])  # הוסף את הדקורטור הזה
 def monthly_summary(request):
+    user = request.user  # קבלת המשתמש המחובר
+
     # קבלת חודש ושנה מה-query params
     month = request.query_params.get('month', None)  # חודש בפורמט 'YYYY-MM'
     
@@ -187,12 +247,12 @@ def monthly_summary(request):
 
 # סיכום
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])  # הוסף את הדקורטור הזה
 def summary_view(request):
+    user = request.user  # קבלת המשתמש המחובר
+
     total_income = Transaction.objects.filter(category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
     total_expense = Transaction.objects.filter(category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
-
-    # balance = total_income - total_expense
-
 
     return Response({
         'total_income': total_income,
