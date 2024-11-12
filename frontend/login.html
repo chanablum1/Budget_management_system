@@ -46,7 +46,7 @@
                 // שמירה של הטוקן ב-localStorage או sessionStorage
                 localStorage.setItem('authToken', authToken);
                 localStorage.setItem('refreshToken', refreshToken);
-                localStorage.setItem('username', response.data.username);
+                // localStorage.setItem('username', response.data.username);
 
                 document.getElementById('login-message').innerHTML = '<p class="text-success">Login successful!</p>';
                 window.location.href = 'index.html'; // הפניה לאחר התחברות

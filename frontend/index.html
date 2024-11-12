@@ -70,19 +70,37 @@
 
         let chart = null; // משתנה כדי לאחסן את הגרף הקיים
 
+        // פונקציה לפענח את הטוקן ולקבל את שם המשתמש
+        function getUserFromToken(token) {
+                const parts = token.split('.');
+                if (parts.length === 3) {
+                    // פענוח ה-Payload
+                    const payload = atob(parts[1].replace(/_/g, '/').replace(/-/g, '+'));
+                    const decodedPayload = JSON.parse(payload);
+
+                    return decodedPayload.user_id;  // או כל שדה אחר שצריך מה-Payload
+                }
+                return null;
+        }
+
         // פונקציה לעדכון שם המשתמש והצגת כפתור Logout אם המשתמש מחובר
         function checkLoginStatus() {
             const authToken = localStorage.getItem('authToken');
 
             if (authToken) {
-                const username = localStorage.getItem('username'); // שמור את שם המשתמש בעת הלוגין
-                document.getElementById('username-display').textContent = `Hello, ${localStorage.getItem('username')}`;
-                document.getElementById('logout-btn').style.display = 'inline-block';
+                const username = getUserFromToken(authToken); //  שולף את שם המשתמש מהטוקן
+                if (authToken) {
+                    document.getElementById('username-display').textContent = `Hello, ${username}`;
+                    document.getElementById('logout-btn').style.display = 'inline-block';
+                } else {
+                    logout();
+                }
             } else {
-                // אם המשתמש לא מחובר, הפנה לדף הלוגין
+            // אם המשתמש לא מחובר, הפנה לדף הלוגין
                 window.location.href = 'login.html';
             }
         }
+            
 
         async function loadMonthlySummary() {
             const month = document.getElementById('monthSelect').value;
@@ -151,7 +169,7 @@
             // מסיר את הטוקן מ-localStorage ומפנה לדף הלוגין
             localStorage.removeItem('authToken');
             localStorage.removeItem('refreshToken');
-            localStorage.removeItem('username');
+            // localStorage.removeItem('username');
             window.location.href = 'login.html'; // הפנייה לעמוד הלוגין
         }
 

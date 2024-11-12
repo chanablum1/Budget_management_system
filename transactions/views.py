@@ -10,6 +10,9 @@ from users.models import SmartUser
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_date
 from datetime import datetime, timedelta
+import base64
+import json
+
 
 
 @api_view(['POST'])
@@ -76,6 +79,42 @@ def register(request):
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)    
 
 
+# פונקציה לפענח את הטוקן ולקבל את שם המשתמש
+def get_user_from_token(request):
+    # שליפת הטוקן מה-header של הבקשה
+    auth_header = request.headers.get('Authorization')
+    if auth_header:
+        # עיבוד ה-Bearer Token
+        token = auth_header.split(" ")[1]  # מבודדים את הטוקן עצמו (לא את "Bearer")
+
+        # פיצול הטוקן לחלקים (header, payload, signature)
+        parts = token.split(".")
+        if len(parts) == 3:
+            # פענוח ה-Payload
+            payload = base64.urlsafe_b64decode(parts[1] + "==")  # הוספת '==' כדי להפוך לפורמט חוקי של Base64
+            decoded_payload = json.loads(payload)
+            
+            # שליפת המידע על המשתמש (כמו user_id או username)
+            username = decoded_payload.get("username", None)
+            return username
+    return None
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_info(request):
+    # קבלת שם המשתמש מתוך הטוקן
+    username = get_user_from_token(request)
+
+    if username:
+        return Response({
+            "username": username,
+            "message": "User information retrieved successfully"
+        })
+    else:
+        return Response({
+            "error": "Invalid token or user information not found"
+        }, status=400)
+
 # ניהול קטגוריות
 @api_view(['GET', 'POST'])
 def category_list(request):
@@ -124,7 +163,7 @@ def category_detail(request, pk):
 # פונקציה לניהול עסקאות
 @csrf_exempt
 @api_view(['GET', 'POST', 'PUT', 'DELETE'])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def transaction_detail(request, pk=None):
     user = request.user  # קבלת המשתמש המחובר
 
