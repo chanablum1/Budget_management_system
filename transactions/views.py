@@ -1,20 +1,19 @@
 from django.shortcuts import get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Sum
+from django.utils.dateparse import parse_date
+from datetime import datetime, timedelta
+import base64
+import json
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-
 import users
 from .models import Transaction, Category
 from .serializers import TransactionSerializer, CategorySerializer, UserSerializer
-from django.db.models import Sum
 from users.models import SmartUser
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.dateparse import parse_date
-from datetime import datetime, timedelta
-import base64
-import json
 
 
 
@@ -82,41 +81,6 @@ def register(request):
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)    
 
 
-# פונקציה לפענח את הטוקן ולקבל את שם המשתמש
-def get_user_from_token(request):
-    # שליפת הטוקן מה-header של הבקשה
-    auth_header = request.headers.get('Authorization')
-    if auth_header:
-        # עיבוד ה-Bearer Token
-        token = auth_header.split(" ")[1]  # מבודדים את הטוקן עצמו (לא את "Bearer")
-
-        # פיצול הטוקן לחלקים (header, payload, signature)
-        parts = token.split(".")
-        if len(parts) == 3:
-            # פענוח ה-Payload
-            payload = base64.urlsafe_b64decode(parts[1] + "==")  # הוספת '==' כדי להפוך לפורמט חוקי של Base64
-            decoded_payload = json.loads(payload)
-            
-            # שליפת המידע על המשתמש (כמו user_id או username)
-            username = decoded_payload.get("username", None)
-            return username
-    return None
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def user_info(request):
-    # קבלת שם המשתמש מתוך הטוקן
-    username = get_user_from_token(request)
-
-    if username:
-        return Response({
-            "username": username,
-            "message": "User information retrieved successfully"
-        })
-    else:
-        return Response({
-            "error": "Invalid token or user information not found"
-        }, status=400)
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])  # Ensure user is authenticated
@@ -169,100 +133,6 @@ def category_detail(request, pk):
     elif request.method == 'DELETE':
         category.delete()
         return Response({'message': 'Category deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-
-
-# פונקציה לניהול עסקאות
-# @csrf_exempt
-# @api_view(['GET', 'POST', 'PUT', 'DELETE'])
-# @permission_classes([IsAuthenticated])
-# def transaction_detail(request, pk=None):
-#     if pk is not None:
-#         transaction = get_object_or_404(Transaction, pk=pk)
-#         if transaction.user != request.user:
-#             return Response(
-#                 {"error": "You can only access your own transaction."},
-#                 status=status.HTTP_403_FORBIDDEN,
-#             )
-#     if request.method == 'GET':
-#         if pk is None:
-#             # סינון העסקאות לפי הטייפ (הכנסה או הוצאה)
-#             transaction_type = request.query_params.get('type', None)  
-#             if transaction_type == 'income':
-#                 transactions = Transaction.objects.filter(category__type='income')  
-#             elif transaction_type == 'expense':
-#                 transactions = Transaction.objects.filter(category__type='expense') 
-#             else:
-#                 transactions = Transaction.objects.all()
-#                 # filter(user=user)  
-
-#             serializer = TransactionSerializer(transactions, many=True)
-#             return Response(serializer.data)
-#         else:
-#             try:
-#                 transaction = Transaction.objects.get(pk=pk)
-#                 serializer = TransactionSerializer(transaction)
-#                 return Response(serializer.data)
-#             except Transaction.DoesNotExist:
-#                 return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
-
-#     elif request.method == 'POST':
-#         # if not request.user.is_authenticated or request.user.id != 1:
-#         #     return Response({'error': 'Unauthorized user'}, status=status.HTTP_403_FORBIDDEN)
-
-#         data = request.data
-#         try:
-#             category = Category.objects.get(id=data['category'])
-#         except Category.DoesNotExist:
-#             return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
-
-#         if category.type not in ['income', 'expense']:
-#             return Response({'error': 'Invalid category type'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         user = SmartUser.objects.get(id=1)
-#         # שימוש ביוזר קיים
-#         transaction = Transaction.objects.create(
-#             user=user,  # משתמש קיים (במקרה הזה עם ID 1)
-#             category=category,
-#             date=data['date'],
-#             amount=data['amount'],
-#             description=data['description'],
-#             payment_method=data.get('payment_method')  # אם יש אמצעי תשלום
-#         )
-        
-#         return Response(TransactionSerializer(transaction).data, status=status.HTTP_201_CREATED)
-
-#     elif request.method == 'PUT':
-#         try:
-#             transaction = Transaction.objects.get(pk=pk)
-#         except Transaction.DoesNotExist:
-#             return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
-
-#                 # קריאת נתוני הקטגוריה, במקרה הזה רק ה-ID מגיע
-#         category_id = request.data.get('category')  # מקבלים רק את ה-ID של הקטגוריה
-#         try:
-#             category = Category.objects.get(id=category_id)  # לא צריך את כל המילון, רק את ה-ID
-#         except Category.DoesNotExist:
-#             return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
-
-#         # עדכון העיסקה עם הנתונים החדשים
-#         transaction.date = request.data.get('date', transaction.date)
-#         transaction.amount = request.data.get('amount', transaction.amount)
-#         transaction.category = category  # עדכון הקטגוריה לפי ה-ID
-#         transaction.description = request.data.get('description', transaction.description)
-#         transaction.payment_method = request.data.get('payment_method', transaction.payment_method)
-
-#         transaction.save()  # שמירת העדכון
-
-#         serializer = TransactionSerializer(transaction)
-#         return Response(serializer.data)  # מחזירים את העיסקה המעודכנת
-
-#     elif request.method == 'DELETE':
-#         try:
-#             transaction = Transaction.objects.get(pk=pk)
-#             transaction.delete()
-#             return Response({'message': 'Transaction deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-#         except Transaction.DoesNotExist:
-#             return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
 @csrf_exempt
@@ -383,7 +253,7 @@ def monthly_summary(request):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# סיכום
+# סיכום כללי טרם הוספתי אופציה זו
 # @api_view(['GET'])
 # # @permission_classes([IsAuthenticated])  # הוסף את הדקורטור הזה
 # def summary_view(request):
