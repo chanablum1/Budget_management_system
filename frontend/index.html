@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- קישור לאייקונים של Font Awesome -->
@@ -69,26 +70,27 @@
     <script>
 
         let chart = null; // משתנה כדי לאחסן את הגרף הקיים
+        const username = localStorage.getItem("username");
 
         // פונקציה לפענח את הטוקן ולקבל את שם המשתמש
-        function getUserFromToken(token) {
-                const parts = token.split('.');
-                if (parts.length === 3) {
-                    // פענוח ה-Payload
-                    const payload = atob(parts[1].replace(/_/g, '/').replace(/-/g, '+'));
-                    const decodedPayload = JSON.parse(payload);
+        // function getUserFromToken(token) {
+        //         const parts = token.split('.');
+        //         if (parts.length === 3) {
+        //             // פענוח ה-Payload
+        //             const payload = atob(parts[1].replace(/_/g, '/').replace(/-/g, '+'));
+        //             const decodedPayload = JSON.parse(payload);
 
-                    return decodedPayload.user_id;  // או כל שדה אחר שצריך מה-Payload
-                }
-                return null;
-        }
+        //             // return decodedPayload[localStorage.getItem('username')];
+        //         }
+        //         return null;
+        // }
 
         // פונקציה לעדכון שם המשתמש והצגת כפתור Logout אם המשתמש מחובר
         function checkLoginStatus() {
             const authToken = localStorage.getItem('authToken');
 
             if (authToken) {
-                const username = getUserFromToken(authToken); //  שולף את שם המשתמש מהטוקן
+                // const username = getUserFromToken(authToken); //  שולף את שם המשתמש מהטוקן
                 if (authToken) {
                     document.getElementById('username-display').textContent = `Hello, ${username}`;
                     document.getElementById('logout-btn').style.display = 'inline-block';

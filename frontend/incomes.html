@@ -2,6 +2,7 @@
 <html lang="he">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <title>ניהול הכנסות</title>
@@ -9,6 +10,14 @@
 <body>
     <div class="container">
         <h1 class="mt-4">ניהול הכנסות</h1>
+
+        <!-- הצגת שם המשתמש והכפתור Logout -->
+        <div class="d-flex justify-content-between">
+            <div id="user-info">
+                <span id="username-display"></span>
+            </div>
+            <button id="logout-btn" class="btn btn-danger" style="display: none;" onclick="logout()">Logout</button>
+        </div>
         
         <div class="mb-3">
             <button class="btn btn-primary" data-toggle="modal" data-target="#addIncomeModal">הוסף הכנסה</button>
@@ -81,28 +90,41 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-        async function loadCategories() {
-            try {
-                const response = await axios.get('http://127.0.0.1:8000/transaction/categories/?type=income');
-                const categories = response.data;
-                const incomeCategorySelect = document.getElementById('incomeCategory'); 
 
-                categories.forEach(category => {
-                    const option = document.createElement('option');
-                    option.value = category.id; // אנו שולחים רק את ה-ID של הקטגוריה
-                    option.textContent = category.name;
-                    incomeCategorySelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error loading categories:', error);
+        let currentIncomeId = null; // משתנה גלובלי לאחסון ה-ID של העיסקה הנבחרת
+
+
+        // פונקציה לעדכון שם המשתמש והצגת כפתור Logout אם המשתמש מחובר
+        function checkLoginStatus() {
+            const authToken = localStorage.getItem('authToken');
+            const username = localStorage.getItem("username");
+
+            if (authToken) {
+                document.getElementById('username-display').textContent = `Hello, ${username}`;
+                document.getElementById('logout-btn').style.display = 'inline-block';
+            } else {
+                // אם המשתמש לא מחובר, הפנה לדף הלוגין
+                window.location.href = 'login.html';
             }
         }
 
+        // פונקציה לביצוע Logout
+        function logout() {
+            // מסיר את הטוקן מ-localStorage ומפנה לדף הלוגין
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('username');
+            window.location.href = 'login.html'; // הפנייה לעמוד הלוגין
+        }
+
+        // טוען את הכנסות המשתמש
         async function loadIncomes() {
             try {
-                const response = await axios.get('http://127.0.0.1:8000/transaction/transactions/?type=income');
+                const response = await axios.get('http://127.0.0.1:8000/transaction/transactions/?type=income', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}` // שליחת הטוקן בהגדרת כותרת
+                    }
+                });
                 const incomes = response.data;
-                console.log(incomes);
                 const tableBody = document.getElementById('incomeTableBody');
                 tableBody.innerHTML = ''; // נקה את הטבלה
 
@@ -123,14 +145,17 @@
             }
         }
 
-        let currentIncomeId = null;  // הגדרת משתנה גלובלי ברירת מחדל
 
         // פונקציה להוסיף נתונים של העיסקה לטופס על מנת לעדכן אותה
         async function editIncome(id) {
-            currentIncomeId = id;  // שומר את ה-ID של העיסקה שנבחרה לעריכה
+            currentIncomeId = id; // שומר את ה-ID של העיסקה שנבחרה לעריכה
 
             try {
-                const response = await axios.get(`http://127.0.0.1:8000/transaction/transactions/${id}/`);
+                const response = await axios.get(`http://127.0.0.1:8000/transaction/transactions/${id}/`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    }
+                });
                 const income = response.data;
 
                 // טוען את הנתונים של העיסקה לטופס
@@ -146,7 +171,8 @@
                 console.error('Error fetching income for editing:', error);
             }
         }
-        // עדכון הפונקציה addIncome כך שתעדכן את העיסקה הישנה ולא תוסיף עיסקה חדשה
+
+        // פונקציה להוסיף או לעדכן הכנסה
         async function addIncome(event) {
             event.preventDefault();
 
@@ -171,6 +197,10 @@
                         category: category,  // שלח את ה-ID של הקטגוריה
                         description: description,
                         payment_method: paymentMethod
+                    }, {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('authToken')}`  // שליחת הטוקן בהגדרת כותרת
+                        }
                     });
 
                     if (response.status === 200) {
@@ -191,6 +221,10 @@
                         category: category,
                         description: description,
                         payment_method: paymentMethod,
+                    }, {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('authToken')}`  // שליחת הטוקן בהגדרת כותרת
+                        }
                     });
 
                     if (response.status === 201) {
@@ -204,40 +238,50 @@
             }
         }
 
+        // מאזין לאירוע submit של טופס ההכנסה
+        document.getElementById('incomeForm').addEventListener('submit', addIncome);
+
+        // פונקציה למחוק הכנסה
         async function deleteIncome(id) {
             try {
-                await axios.delete(`http://127.0.0.1:8000/transaction/transactions/${id}/`);
+                await axios.delete(`http://127.0.0.1:8000/transaction/transactions/${id}/`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`  // שליחת הטוקן בהגדרת כותרת
+                    }
+                });
                 loadIncomes(); // טוען מחדש את העיסקאות אחרי מחיקת העיסקה
             } catch (error) {
                 console.error('Error deleting income:', error);
             }
         }
 
-        // פונקציה להוסיף נתונים של העיסקה לטופס על מנת לעדכן אותה
-        async function editIncome(id) {
-            currentIncomeId = id;  // שומר את ה-ID של העיסקה שנבחרה לעריכה
-            
+        // טוען את הקטגוריות
+        async function loadCategories() {
             try {
-                const response = await axios.get(`http://127.0.0.1:8000/transaction/transactions/${id}/`);
-                const income = response.data;
+                const response = await axios.get('http://127.0.0.1:8000/transaction/categories/?type=income', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`  // שליחת הטוקן בהגדרת כותרת
+                    }
+                });
+                const categories = response.data;
+                const incomeCategorySelect = document.getElementById('incomeCategory'); 
 
-                // טוען את הנתונים של העיסקה לטופס
-                document.getElementById('incomeDate').value = income.date;
-                document.getElementById('incomeAmount').value = income.amount;
-                document.getElementById('incomeDescription').value = income.description;
-                document.getElementById('incomePaymentMethod').value = income.payment_method;
-                document.getElementById('incomeCategory').value = income.category.id;
-
-                // פותח את המודל
-                $('#addIncomeModal').modal('show');
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id; // שולחים רק את ה-ID של הקטגוריה
+                    option.textContent = category.name;
+                    incomeCategorySelect.appendChild(option);
+                });
             } catch (error) {
-                console.error('Error fetching income for editing:', error);
+                console.error('Error loading categories:', error);
             }
         }
 
-        document.getElementById('incomeForm').addEventListener('submit', addIncome);
-        loadIncomes(); // טען הכנסות כשעמודים
-        loadCategories(); // טען קטגוריות
+
+        // טוען את ההכנסות והקטגוריות
+        loadIncomes();
+        loadCategories();
+        checkLoginStatus(); // בדוק אם המשתמש מחובר
     </script>
 </body>
 </html>

@@ -1,10 +1,13 @@
+from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+
+import users
 from .models import Transaction, Category
-from .serializers import TransactionSerializer, CategorySerializer
+from .serializers import TransactionSerializer, CategorySerializer, UserSerializer
 from django.db.models import Sum
 from users.models import SmartUser
 from django.views.decorators.csrf import csrf_exempt
@@ -115,6 +118,14 @@ def user_info(request):
             "error": "Invalid token or user information not found"
         }, status=400)
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])  # Ensure user is authenticated
+def get_user_info(request):
+    user = request.user  # Get the authenticated user
+    serializer = UserSerializer(user)
+    return Response(serializer.data)
+
+
 # ניהול קטגוריות
 @api_view(['GET', 'POST'])
 def category_list(request):
@@ -161,38 +172,131 @@ def category_detail(request, pk):
 
 
 # פונקציה לניהול עסקאות
+# @csrf_exempt
+# @api_view(['GET', 'POST', 'PUT', 'DELETE'])
+# @permission_classes([IsAuthenticated])
+# def transaction_detail(request, pk=None):
+#     if pk is not None:
+#         transaction = get_object_or_404(Transaction, pk=pk)
+#         if transaction.user != request.user:
+#             return Response(
+#                 {"error": "You can only access your own transaction."},
+#                 status=status.HTTP_403_FORBIDDEN,
+#             )
+#     if request.method == 'GET':
+#         if pk is None:
+#             # סינון העסקאות לפי הטייפ (הכנסה או הוצאה)
+#             transaction_type = request.query_params.get('type', None)  
+#             if transaction_type == 'income':
+#                 transactions = Transaction.objects.filter(category__type='income')  
+#             elif transaction_type == 'expense':
+#                 transactions = Transaction.objects.filter(category__type='expense') 
+#             else:
+#                 transactions = Transaction.objects.all()
+#                 # filter(user=user)  
+
+#             serializer = TransactionSerializer(transactions, many=True)
+#             return Response(serializer.data)
+#         else:
+#             try:
+#                 transaction = Transaction.objects.get(pk=pk)
+#                 serializer = TransactionSerializer(transaction)
+#                 return Response(serializer.data)
+#             except Transaction.DoesNotExist:
+#                 return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
+
+#     elif request.method == 'POST':
+#         # if not request.user.is_authenticated or request.user.id != 1:
+#         #     return Response({'error': 'Unauthorized user'}, status=status.HTTP_403_FORBIDDEN)
+
+#         data = request.data
+#         try:
+#             category = Category.objects.get(id=data['category'])
+#         except Category.DoesNotExist:
+#             return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
+
+#         if category.type not in ['income', 'expense']:
+#             return Response({'error': 'Invalid category type'}, status=status.HTTP_400_BAD_REQUEST)
+
+#         user = SmartUser.objects.get(id=1)
+#         # שימוש ביוזר קיים
+#         transaction = Transaction.objects.create(
+#             user=user,  # משתמש קיים (במקרה הזה עם ID 1)
+#             category=category,
+#             date=data['date'],
+#             amount=data['amount'],
+#             description=data['description'],
+#             payment_method=data.get('payment_method')  # אם יש אמצעי תשלום
+#         )
+        
+#         return Response(TransactionSerializer(transaction).data, status=status.HTTP_201_CREATED)
+
+#     elif request.method == 'PUT':
+#         try:
+#             transaction = Transaction.objects.get(pk=pk)
+#         except Transaction.DoesNotExist:
+#             return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
+
+#                 # קריאת נתוני הקטגוריה, במקרה הזה רק ה-ID מגיע
+#         category_id = request.data.get('category')  # מקבלים רק את ה-ID של הקטגוריה
+#         try:
+#             category = Category.objects.get(id=category_id)  # לא צריך את כל המילון, רק את ה-ID
+#         except Category.DoesNotExist:
+#             return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
+
+#         # עדכון העיסקה עם הנתונים החדשים
+#         transaction.date = request.data.get('date', transaction.date)
+#         transaction.amount = request.data.get('amount', transaction.amount)
+#         transaction.category = category  # עדכון הקטגוריה לפי ה-ID
+#         transaction.description = request.data.get('description', transaction.description)
+#         transaction.payment_method = request.data.get('payment_method', transaction.payment_method)
+
+#         transaction.save()  # שמירת העדכון
+
+#         serializer = TransactionSerializer(transaction)
+#         return Response(serializer.data)  # מחזירים את העיסקה המעודכנת
+
+#     elif request.method == 'DELETE':
+#         try:
+#             transaction = Transaction.objects.get(pk=pk)
+#             transaction.delete()
+#             return Response({'message': 'Transaction deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+#         except Transaction.DoesNotExist:
+#             return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
 @csrf_exempt
 @api_view(['GET', 'POST', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def transaction_detail(request, pk=None):
-    user = request.user  # קבלת המשתמש המחובר
-
+    # Retrieve a specific transaction
+    if pk is not None:
+        transaction = get_object_or_404(Transaction, pk=pk)
+        if transaction.user != request.user:
+            return Response(
+                {"error": "You can only access your own transaction."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+    
+    # GET request handling
     if request.method == 'GET':
         if pk is None:
-            # סינון העסקאות לפי הטייפ (הכנסה או הוצאה)
-            transaction_type = request.query_params.get('type', None)  
+            # Filter transactions based on type query parameter
+            transaction_type = request.query_params.get('type')
             if transaction_type == 'income':
-                transactions = Transaction.objects.filter(category__type='income')  
+                transactions = Transaction.objects.filter(user=request.user, category__type='income')
             elif transaction_type == 'expense':
-                transactions = Transaction.objects.filter(category__type='expense') 
+                transactions = Transaction.objects.filter(user=request.user, category__type='expense')
             else:
-                transactions = Transaction.objects.all()
-                # filter(user=user)  
-
+                transactions = Transaction.objects.filter(user=request.user)
             serializer = TransactionSerializer(transactions, many=True)
             return Response(serializer.data)
         else:
-            try:
-                transaction = Transaction.objects.get(pk=pk)
-                serializer = TransactionSerializer(transaction)
-                return Response(serializer.data)
-            except Transaction.DoesNotExist:
-                return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
+            serializer = TransactionSerializer(transaction)
+            return Response(serializer.data)
 
+    # POST request handling
     elif request.method == 'POST':
-        # if not request.user.is_authenticated or request.user.id != 1:
-        #     return Response({'error': 'Unauthorized user'}, status=status.HTTP_403_FORBIDDEN)
-
         data = request.data
         try:
             category = Category.objects.get(id=data['category'])
@@ -202,51 +306,46 @@ def transaction_detail(request, pk=None):
         if category.type not in ['income', 'expense']:
             return Response({'error': 'Invalid category type'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = SmartUser.objects.get(id=1)
-        # שימוש ביוזר קיים
         transaction = Transaction.objects.create(
-            user=user,  # משתמש קיים (במקרה הזה עם ID 1)
+            user=request.user,
             category=category,
             date=data['date'],
             amount=data['amount'],
             description=data['description'],
-            payment_method=data.get('payment_method')  # אם יש אמצעי תשלום
+            payment_method=data.get('payment_method')
         )
-        
-        return Response(TransactionSerializer(transaction).data, status=status.HTTP_201_CREATED)
+        serializer = TransactionSerializer(transaction)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    # PUT request handling
     elif request.method == 'PUT':
-        try:
-            transaction = Transaction.objects.get(pk=pk)
-        except Transaction.DoesNotExist:
-            return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
+        if pk is None:
+            return Response({'error': 'Transaction ID required for updating'}, status=status.HTTP_400_BAD_REQUEST)
 
-                # קריאת נתוני הקטגוריה, במקרה הזה רק ה-ID מגיע
-        category_id = request.data.get('category')  # מקבלים רק את ה-ID של הקטגוריה
+        data = request.data
         try:
-            category = Category.objects.get(id=category_id)  # לא צריך את כל המילון, רק את ה-ID
+            category = Category.objects.get(id=data.get('category', transaction.category.id))
         except Category.DoesNotExist:
             return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # עדכון העיסקה עם הנתונים החדשים
-        transaction.date = request.data.get('date', transaction.date)
-        transaction.amount = request.data.get('amount', transaction.amount)
-        transaction.category = category  # עדכון הקטגוריה לפי ה-ID
-        transaction.description = request.data.get('description', transaction.description)
-        transaction.payment_method = request.data.get('payment_method', transaction.payment_method)
-
-        transaction.save()  # שמירת העדכון
-
+        # Update transaction fields
+        transaction.date = data.get('date', transaction.date)
+        transaction.amount = data.get('amount', transaction.amount)
+        transaction.category = category
+        transaction.description = data.get('description', transaction.description)
+        transaction.payment_method = data.get('payment_method', transaction.payment_method)
+        
+        transaction.save()
         serializer = TransactionSerializer(transaction)
-        return Response(serializer.data)  # מחזירים את העיסקה המעודכנת
+        return Response(serializer.data)
 
+    # DELETE request handling
     elif request.method == 'DELETE':
-        try:
-            transaction = Transaction.objects.get(pk=pk)
-            transaction.delete()
-            return Response({'message': 'Transaction deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-        except Transaction.DoesNotExist:
-            return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
+        if pk is None:
+            return Response({'error': 'Transaction ID required for deletion'}, status=status.HTTP_400_BAD_REQUEST)
+
+        transaction.delete()
+        return Response({'message': 'Transaction deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 # סיכום חודשי
 @api_view(['GET'])
@@ -271,8 +370,8 @@ def monthly_summary(request):
             end_date = datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1)
             
             # סיכום הכנסות והוצאות בחודש הנבחר
-            total_income = Transaction.objects.filter(date__gte=start_date, date__lt=end_date, category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
-            total_expense = Transaction.objects.filter(date__gte=start_date, date__lt=end_date, category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
+            total_income = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
+            total_expense = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
             
             return Response({
                 "total_income": total_income,
@@ -285,16 +384,16 @@ def monthly_summary(request):
 
 
 # סיכום
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])  # הוסף את הדקורטור הזה
-def summary_view(request):
-    user = request.user  # קבלת המשתמש המחובר
+# @api_view(['GET'])
+# # @permission_classes([IsAuthenticated])  # הוסף את הדקורטור הזה
+# def summary_view(request):
+#     user = request.user  # קבלת המשתמש המחובר
 
-    total_income = Transaction.objects.filter(category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
-    total_expense = Transaction.objects.filter(category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
+#     total_income = Transaction.objects.filter(category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
+#     total_expense = Transaction.objects.filter(category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
 
-    return Response({
-        'total_income': total_income,
-        'total_expense': total_expense,
-        'balance': total_income - total_expense
-    })
+#     return Response({
+#         'total_income': total_income,
+#         'total_expense': total_expense,
+#         'balance': total_income - total_expense
+#     })

@@ -24,7 +24,7 @@ class Transaction(models.Model):
         ('check', 'Check'),
     ]
 
-    user = models.ForeignKey(SmartUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(SmartUser, on_delete=models.CASCADE, related_name="transactions")
     category = models.ForeignKey(Category, on_delete=models.CASCADE) 
     date = models.DateField()
     amount = models.DecimalField(max_digits=10, decimal_places=2)

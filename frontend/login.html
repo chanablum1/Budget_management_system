@@ -48,6 +48,16 @@
                 localStorage.setItem('refreshToken', refreshToken);
                 // localStorage.setItem('username', response.data.username);
 
+                const userInfoResponse = await axios.get(`http://127.0.0.1:8000/transaction/user/`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`  // Pass the token in the header
+                    }
+                });
+
+                // Extract userType from the response and store it in localStorage
+                const userName = userInfoResponse.data.username;
+                localStorage.setItem('username', userName);
+
                 document.getElementById('login-message').innerHTML = '<p class="text-success">Login successful!</p>';
                 window.location.href = 'index.html'; // הפניה לאחר התחברות
             } catch (error) {
