@@ -20,7 +20,14 @@ SECRET_KEY = 'django-insecure-1n=4tyness3u+b#gh+sbe^&y3j28tp%jl2n+%il$=!&wne0(ia
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+# ALLOWED_HOSTS = ['*']
+# ALLOWED_HOSTS = ['budget-management-system-1fqb.onrender.com', '127.0.0.1:8000']
+ALLOWED_HOSTS = ['budget-management-system-1fqb.onrender.com', '127.0.0.1', 'localhost']
+
+CSRF_TRUSTED_ORIGINS = ['https://budget-management-system-1fqb.onrender.com/']
+CORS_ALLOWED_ORIGINS = [
+    'https://budget-management-system-1fqb.onrender.com/',
+]
 
 
 # Application definition
