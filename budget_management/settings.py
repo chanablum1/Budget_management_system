@@ -1,4 +1,5 @@
 
+from datetime import timedelta
 import dj_database_url
 from pathlib import Path
 import os
@@ -187,3 +188,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.SmartUser'
 
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=365),}
