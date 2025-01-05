@@ -40,7 +40,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = SmartUser
-        fields = [ 'id', 'username', 'email', 'phone_number', 'address', 'birth_date']
+        fields = [ 'id', 'username', 'phone_number', ]
 
 
 

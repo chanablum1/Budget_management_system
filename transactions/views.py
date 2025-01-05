@@ -84,7 +84,6 @@ def register(request):
     username = request.data.get('username')
     password = request.data.get('password')
     first_name = request.data.get('first_name', None)
-    email = request.data.get('email', None)
     phone_number = request.data.get('phone_number', None)
 
     try:
@@ -93,7 +92,6 @@ def register(request):
             username=username,
             password=password,
             first_name=first_name,
-            email=email
         )
         user.phone_number = phone_number
         user.save()
@@ -107,7 +105,6 @@ def register(request):
             'access': access_token,
             'refresh': refresh_token,
             'username': user.username,
-            'email': user.email,
             'phone_number': user.phone_number,
         }, status=status.HTTP_201_CREATED)
 
