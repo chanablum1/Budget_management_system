@@ -40,7 +40,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = SmartUser
-        fields = [ 'id', 'username', 'phone_number', ]
+        fields = '__all__'
 
 
 
