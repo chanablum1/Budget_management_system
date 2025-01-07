@@ -56,47 +56,17 @@ def login(request):
 
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-@api_view(['POST'])
-def register(request):
-    username = request.data.get('username')
-    password = request.data.get('password')
-    first_name = request.data.get('first_name')
-
-    # יצירת משתמש חדש
-    try:
-        user = SmartUser.objects.create_user(username=username, password=password, first_name=first_name)
-        
-        # יצירת טוקן גישה ו-refresh
-        refresh = RefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
-        refresh_token = str(refresh)
-
-        return Response({
-            'access': access_token,
-            'refresh': refresh_token,
-            'username': user.username
-        }, status=status.HTTP_201_CREATED)
-    
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)    
 # @api_view(['POST'])
 # def register(request):
 #     username = request.data.get('username')
 #     password = request.data.get('password')
-#     first_name = request.data.get('first_name', None)
-#     phone_number = request.data.get('phone_number', None)
+#     first_name = request.data.get('first_name')
 
+#     # יצירת משתמש חדש
 #     try:
-#         # יצירת משתמש חדש עם אימייל ומספר טלפון
-#         user = SmartUser.objects.create_user(
-#             username=username,
-#             password=password,
-#             first_name=first_name,
-#         )
-#         user.phone_number = phone_number
-#         user.save()
-
-#         # יצירת טוקנים
+#         user = SmartUser.objects.create_user(username=username, password=password, first_name=first_name)
+        
+#         # יצירת טוקן גישה ו-refresh
 #         refresh = RefreshToken.for_user(user)
 #         access_token = str(refresh.access_token)
 #         refresh_token = str(refresh)
@@ -104,12 +74,42 @@ def register(request):
 #         return Response({
 #             'access': access_token,
 #             'refresh': refresh_token,
-#             'username': user.username,
-#             'phone_number': user.phone_number,
+#             'username': user.username
 #         }, status=status.HTTP_201_CREATED)
-
+    
 #     except Exception as e:
-#         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+#         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)    
+@api_view(['POST'])
+def register(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    first_name = request.data.get('first_name', None)
+    phone_number = request.data.get('phone_number', None)
+
+    try:
+        # יצירת משתמש חדש עם אימייל ומספר טלפון
+        user = SmartUser.objects.create_user(
+            username=username,
+            password=password,
+            first_name=first_name,
+        )
+        user.phone_number = phone_number
+        user.save()
+
+        # יצירת טוקנים
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        return Response({
+            'access': access_token,
+            'refresh': refresh_token,
+            'username': user.username,
+            'phone_number': user.phone_number,
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
