@@ -1,20 +1,26 @@
-from django.shortcuts import get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Sum
-from django.utils.dateparse import parse_date
 from datetime import datetime, timedelta
 import base64
 import json
+import urllib.parse
+
+from django.shortcuts import get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.dateparse import parse_date
+from django.core.mail import send_mail
+from django.conf import settings
+from django.db.models import Sum
+
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-import users
+from rest_framework_simplejwt.tokens import RefreshToken
+
+import pywhatkit as kit
+
 from .models import Transaction, Category
 from .serializers import TransactionSerializer, CategorySerializer, UserSerializer
 from users.models import SmartUser
-
 
 
 @api_view(['POST'])
@@ -298,3 +304,57 @@ def monthly_summary(request):
 #         'total_expense': total_expense,
 #         'balance': total_income - total_expense
 #     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def monthly_whatsapp_summary(request):
+    user = request.user  # קבלת המשתמש המחובר
+
+    # קבלת חודש ושנה מה-query params
+    month = request.query_params.get('month', None)  # חודש בפורמט 'YYYY-MM'
+    
+    if not month:
+        return Response({"error": "חודש לא צוין"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # המרת החודש (בשנה-חודש) לפורמט תאריך
+        year, month = month.split("-")
+        month = int(month)
+        year = int(year)
+        
+        # סינון העסקאות לפי תאריך החודש והשנה
+        start_date = datetime(year, month, 1)
+        end_date = datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1)
+        
+        # סיכום הכנסות והוצאות בחודש הנבחר
+        total_income = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
+        total_expense = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        balance = total_income - total_expense
+
+        # אם היתרה נמוכה מ-10,000 ש"ח, נשלח הודעת וואטסאפ
+        if balance < 10000:
+            message = f"שלום {user.first_name}, הגעת למצב בו היתרה שלך בחודש {year}-{month} היא: {balance} ש\"ח, שהינה מתחת למגבלה של 10,000 ש\"ח."
+            
+            # שליחת הודעת WhatsApp מיידית
+            kit.sendwhatmsg(f"+972{user.phone_number}", message, 12, 0, 15)
+            
+            # החזרת ערך של שליחה בהצלחה
+            whatsapp_message_sent = True
+        else:
+            whatsapp_message_sent = False
+
+        # מייבא את הסילייזר
+        serializer = TransactionSerializer(data={
+            "total_income": total_income,
+            "total_expense": total_expense,
+            "balance": balance,
+            "whatsapp_message_sent": whatsapp_message_sent,
+            "month": f"{year}-{month:02d}"
+        })
+
+        return Response(serializer.data)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
