@@ -190,3 +190,11 @@ AUTH_USER_MODEL = 'users.SmartUser'
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=365),}
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'c0583275113@gmail.com'  # כתובת השולח
+EMAIL_HOST_PASSWORD = 'cb207068040'
+DEFAULT_FROM_EMAIL = 'c0583275113@gmail.com'  # כתובת השולח המוצגת

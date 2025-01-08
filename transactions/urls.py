@@ -9,6 +9,8 @@ urlpatterns = [
     path('transactions/', views.transaction_detail, name='transactions_list'), 
     path('transactions/<int:pk>/', views.transaction_detail, name='transactions_detail'),
     path('transactions/monthly-summary/', views.monthly_summary, name='transaction_monthly_summary'),  
+    # path('transactions/monthly_summary_email/', views.monthly_summary_email, name='monthly_summary_email'),
+
     # path('transactions/summary/', views.summary_view, name='transaction_summary'),  
 ]
 
