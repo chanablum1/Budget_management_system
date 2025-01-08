@@ -358,134 +358,71 @@ def monthly_summary(request):
 #     except Exception as e:
 #         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-# from django.core.mail import send_mail
+from django.core.mail import send_mail
+from django.conf import settings
+from datetime import datetime
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Sum
+from .models import Transaction
 
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def monthly_summary_email(request):
-#     user = request.user  # קבלת המשתמש המחובר
 
-#     # קבלת חודש ושנה מה-query params
-#     month = request.query_params.get('month', None)  # חודש בפורמט 'YYYY-MM'
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def monthly_summary_email(request):
+    user = request.user  # קבלת המשתמש המחובר
+
+    # קבלת חודש ושנה מה-query params
+    month = request.query_params.get('month', None)  # חודש בפורמט 'YYYY-MM'
     
-#     if not month:
-#         return Response({"error": "חודש לא צוין"}, status=status.HTTP_400_BAD_REQUEST)
+    if not month:
+        return Response({"error": "חודש לא צוין"}, status=status.HTTP_400_BAD_REQUEST)
 
-#     try:
-#         # המרת החודש (בשנה-חודש) לפורמט תאריך
-#         year, month = month.split("-")
-#         month = int(month)
-#         year = int(year)
+    try:
+        # המרת החודש (בשנה-חודש) לפורמט תאריך
+        year, month = month.split("-")
+        month = int(month)
+        year = int(year)
         
-#         # סינון העסקאות לפי תאריך החודש והשנה
-#         start_date = datetime(year, month, 1)
-#         end_date = datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1)
+        # סינון העסקאות לפי תאריך החודש והשנה
+        start_date = datetime(year, month, 1)
+        end_date = datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1)
         
-#         # סיכום הכנסות והוצאות בחודש הנבחר
-#         total_income = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
-#         total_expense = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
+        # סיכום הכנסות והוצאות בחודש הנבחר
+        total_income = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
+        total_expense = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
         
-#         balance = total_income - total_expense
+        balance = total_income - total_expense
 
-#         # אם היתרה נמוכה מ-10,000 ש"ח, נשלח הודעת אימייל
-#         if balance < 10000:
-#             subject = f"יתרה נמוכה - חודש {year}-{month:02d}"
-#             message = f"שלום {user.first_name},\n\nהגעת למצב בו היתרה שלך בחודש {year}-{month:02d} היא: {balance} ש\"ח, שהינה מתחת למגבלה של 10,000 ש\"ח.\n\nבברכה,\nצוות הניהול האישי שלך"
-#             recipient = user.email
+        # אם היתרה נמוכה מ-10,000 ש"ח, נשלח הודעת אימייל
+        if balance < 10000:
+            subject = f"יתרה נמוכה - חודש {year}-{month:02d}"
+            message = f"שלום {user.first_name},\n\nהגעת למצב בו היתרה שלך בחודש {year}-{month:02d} היא: {balance} ש\"ח, שהינה מתחת למגבלה של 10,000 ש\"ח.\n\nבברכה,\nצוות הניהול האישי שלך"
+            recipient = user.email  # כתובת המייל של המשתמש המחובר
 
-#             send_mail(
-#                 subject,
-#                 message,
-#                 settings.DEFAULT_FROM_EMAIL,  # כתובת האימייל שמוגדרת בקובץ ההגדרות
-#                 [recipient],  # כתובת הנמען
-#             )
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,  # כתובת השולח שמוגדרת ב-settings
+                [recipient],  # כתובת הנמען - המשתמש המחובר
+            )
             
-#             # החזרת ערך של שליחה בהצלחה
-#             email_sent = True
-#         else:
-#             email_sent = False
+            # החזרת ערך של שליחה בהצלחה
+            email_sent = True
+        else:
+            email_sent = False
 
-#         # יצירת תגובה
-#         response_data = {
-#             "total_income": total_income,
-#             "total_expense": total_expense,
-#             "balance": balance,
-#             "email_sent": email_sent,
-#             "month": f"{year}-{month:02d}"
-#         }
+        # יצירת תגובה
+        response_data = {
+            "total_income": total_income,
+            "total_expense": total_expense,
+            "balance": balance,
+            "email_sent": email_sent,
+            "month": f"{year}-{month:02d}"
+        }
 
-#         return Response(response_data)
-#     except Exception as e:
-#         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-# from django.core.mail import send_mail
-# from django.conf import settings
-# from datetime import datetime
-# from rest_framework.decorators import api_view, permission_classes
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework.response import Response
-# from rest_framework import status
-# from django.db.models import Sum
-# from .models import Transaction
-
-
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def monthly_summary_email(request):
-#     user = request.user  # קבלת המשתמש המחובר
-
-#     # קבלת חודש ושנה מה-query params
-#     month = request.query_params.get('month', None)  # חודש בפורמט 'YYYY-MM'
-    
-#     if not month:
-#         return Response({"error": "חודש לא צוין"}, status=status.HTTP_400_BAD_REQUEST)
-
-#     try:
-#         # המרת החודש (בשנה-חודש) לפורמט תאריך
-#         year, month = month.split("-")
-#         month = int(month)
-#         year = int(year)
-        
-#         # סינון העסקאות לפי תאריך החודש והשנה
-#         start_date = datetime(year, month, 1)
-#         end_date = datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1)
-        
-#         # סיכום הכנסות והוצאות בחודש הנבחר
-#         total_income = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
-#         total_expense = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
-        
-#         balance = total_income - total_expense
-
-#         # אם היתרה נמוכה מ-10,000 ש"ח, נשלח הודעת אימייל
-#         if balance < 10000:
-#             subject = f"יתרה נמוכה - חודש {year}-{month:02d}"
-#             message = f"שלום {user.first_name},\n\nהגעת למצב בו היתרה שלך בחודש {year}-{month:02d} היא: {balance} ש\"ח, שהינה מתחת למגבלה של 10,000 ש\"ח.\n\nבברכה,\nצוות הניהול האישי שלך"
-#             recipient = user.email  # כתובת המייל של המשתמש המחובר
-
-#             send_mail(
-#                 subject,
-#                 message,
-#                 settings.DEFAULT_FROM_EMAIL,  # כתובת השולח שמוגדרת ב-settings
-#                 [recipient],  # כתובת הנמען - המשתמש המחובר
-#             )
-            
-#             # החזרת ערך של שליחה בהצלחה
-#             email_sent = True
-#         else:
-#             email_sent = False
-
-#         # יצירת תגובה
-#         response_data = {
-#             "total_income": total_income,
-#             "total_expense": total_expense,
-#             "balance": balance,
-#             "email_sent": email_sent,
-#             "month": f"{year}-{month:02d}"
-#         }
-
-#         return Response(response_data)
-#     except Exception as e:
-#         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
+        return Response(response_data)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
