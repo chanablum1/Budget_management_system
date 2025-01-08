@@ -306,9 +306,63 @@ def monthly_summary(request):
 #     })
 
 
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def monthly_whatsapp_summary(request):
+#     user = request.user  # קבלת המשתמש המחובר
+
+#     # קבלת חודש ושנה מה-query params
+#     month = request.query_params.get('month', None)  # חודש בפורמט 'YYYY-MM'
+    
+#     if not month:
+#         return Response({"error": "חודש לא צוין"}, status=status.HTTP_400_BAD_REQUEST)
+
+#     try:
+#         # המרת החודש (בשנה-חודש) לפורמט תאריך
+#         year, month = month.split("-")
+#         month = int(month)
+#         year = int(year)
+        
+#         # סינון העסקאות לפי תאריך החודש והשנה
+#         start_date = datetime(year, month, 1)
+#         end_date = datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1)
+        
+#         # סיכום הכנסות והוצאות בחודש הנבחר
+#         total_income = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='income').aggregate(Sum('amount'))['amount__sum'] or 0
+#         total_expense = Transaction.objects.filter(user=user, date__gte=start_date, date__lt=end_date, category__type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
+        
+#         balance = total_income - total_expense
+
+#         # אם היתרה נמוכה מ-10,000 ש"ח, נשלח הודעת וואטסאפ
+#         if balance < 10000:
+#             message = f"שלום {user.first_name}, הגעת למצב בו היתרה שלך בחודש {year}-{month} היא: {balance} ש\"ח, שהינה מתחת למגבלה של 10,000 ש\"ח."
+            
+#             # שליחת הודעת WhatsApp מיידית
+#             kit.sendwhatmsg(f"+972{user.phone_number}", message, 12, 0, 15)
+            
+#             # החזרת ערך של שליחה בהצלחה
+#             whatsapp_message_sent = True
+#         else:
+#             whatsapp_message_sent = False
+
+#         # מייבא את הסילייזר
+#         serializer = TransactionSerializer(data={
+#             "total_income": total_income,
+#             "total_expense": total_expense,
+#             "balance": balance,
+#             "whatsapp_message_sent": whatsapp_message_sent,
+#             "month": f"{year}-{month:02d}"
+#         })
+
+#         return Response(serializer.data)
+#     except Exception as e:
+#         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+from django.core.mail import send_mail
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def monthly_whatsapp_summary(request):
+def monthly_summary_email(request):
     user = request.user  # קבלת המשתמש המחובר
 
     # קבלת חודש ושנה מה-query params
@@ -333,28 +387,35 @@ def monthly_whatsapp_summary(request):
         
         balance = total_income - total_expense
 
-        # אם היתרה נמוכה מ-10,000 ש"ח, נשלח הודעת וואטסאפ
+        # אם היתרה נמוכה מ-10,000 ש"ח, נשלח הודעת אימייל
         if balance < 10000:
-            message = f"שלום {user.first_name}, הגעת למצב בו היתרה שלך בחודש {year}-{month} היא: {balance} ש\"ח, שהינה מתחת למגבלה של 10,000 ש\"ח."
-            
-            # שליחת הודעת WhatsApp מיידית
-            kit.sendwhatmsg(f"+972{user.phone_number}", message, 12, 0, 15)
+            subject = f"יתרה נמוכה - חודש {year}-{month:02d}"
+            message = f"שלום {user.first_name},\n\nהגעת למצב בו היתרה שלך בחודש {year}-{month:02d} היא: {balance} ש\"ח, שהינה מתחת למגבלה של 10,000 ש\"ח.\n\nבברכה,\nצוות הניהול האישי שלך"
+            recipient = user.email
+
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,  # כתובת האימייל שמוגדרת בקובץ ההגדרות
+                [recipient],  # כתובת הנמען
+            )
             
             # החזרת ערך של שליחה בהצלחה
-            whatsapp_message_sent = True
+            email_sent = True
         else:
-            whatsapp_message_sent = False
+            email_sent = False
 
-        # מייבא את הסילייזר
-        serializer = TransactionSerializer(data={
+        # יצירת תגובה
+        response_data = {
             "total_income": total_income,
             "total_expense": total_expense,
             "balance": balance,
-            "whatsapp_message_sent": whatsapp_message_sent,
+            "email_sent": email_sent,
             "month": f"{year}-{month:02d}"
-        })
+        }
 
-        return Response(serializer.data)
+        return Response(response_data)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
