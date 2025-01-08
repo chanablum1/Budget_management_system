@@ -42,7 +42,6 @@ PyScreeze==1.0.1
 python-decouple==3.8
 python-dotenv==1.0.1
 pytweening==1.2.0
-pywhatkit==5.4
 requests==2.32.3
 six==1.16.0
 soupsieve==2.6

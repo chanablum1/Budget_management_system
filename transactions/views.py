@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 
-import pywhatkit as kit
+# import pywhatkit as kit
 
 from .models import Transaction, Category
 from .serializers import TransactionSerializer, CategorySerializer, UserSerializer
