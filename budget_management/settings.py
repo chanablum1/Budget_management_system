@@ -196,5 +196,5 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'c0583275113@gmail.com'  # כתובת השולח
-EMAIL_HOST_PASSWORD = 'cb207068040'
+EMAIL_HOST_PASSWORD = 'roke dekr mwjb khbg'
 DEFAULT_FROM_EMAIL = 'c0583275113@gmail.com'  # כתובת השולח המוצגת
