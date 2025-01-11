@@ -381,7 +381,7 @@ def monthly_summary_email(request):
         # אם היתרה נמוכה מ-10,000 ש"ח, נשלח הודעת אימייל
         if balance < 0:
             subject = f"יתרה נמוכה - חודש {year}-{month:02d}"
-            message = f"שלום {user.first_name},\n\nהגעת למצב בו היתרה שלך בחודש {year}-{month:02d} היא: {balance} ש\"ח, שהינה מתחת למגבלה שלך ש\"ח.\n\nבברכה,\nצוות הניהול האישי שלך"
+            message = f"שלום {user.first_name},\n\nהגעת למצב בו היתרה שלך בחודש {year}-{month:02d} היא: {balance} ש\", שהינה מתחת למגבלה שלך \"ח.\n\nבברכה,\nצוות הניהול האישי שלך"
             recipient = user.email  # כתובת המייל של המשתמש המחובר
 
             send_mail(
